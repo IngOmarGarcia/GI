@@ -77,9 +77,16 @@ Un plan de pago elimina la suspensión.
 
 ## Endpoints
 
+### `GET /healthz`
+Health check de la plataforma. Responde de inmediato y **no depende de terceros**:
+es el que consulta Render para decidir si enruta tráfico. Nunca debe apuntarse el
+health check a `/api/sat/salud` — una lentitud de la red del SAT bastaría para
+tumbar el despliegue aunque el servicio esté sano.
+
 ### `GET /api/sat/salud`
 Sonda de alcance. Contacta los cuatro hosts del SAT **sin enviar credenciales** y
 reporta si responden. Útil para separar "no hay red" de "la credencial falla".
+Se invoca a mano desde el modal, no automáticamente.
 
 ### `POST /api/sat/diagnostico` (multipart)
 

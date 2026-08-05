@@ -96,7 +96,16 @@ async function diagnosticar(campos, archivos) {
   eq('la llave privada nunca aparece en las respuestas',
      serializado.includes(key.toString('base64').slice(0, 40)), false);
 
-  // 9 · Endpoint de salud (sonda de red real hacia el SAT).
+  // 9 · Health check de la plataforma: instantáneo y sin dependencias externas.
+  const t0 = Date.now();
+  const hz = await (await fetch(`${base}/healthz`)).json();
+  const msHz = Date.now() - t0;
+  eq('/healthz responde ok', hz.ok, true);
+  eq('/healthz reporta el servicio', hz.servicio, 'sigcf-sat-gateway');
+  // Si tardara, sería señal de que consulta a terceros: eso tumbaría el deploy.
+  eq('/healthz responde en menos de 500 ms', msHz < 500, true);
+
+  // 10 · Sonda de red real hacia el SAT (endpoint aparte, invocado a mano).
   const salud = await (await fetch(`${base}/api/sat/salud`)).json();
   eq('salud reporta los 4 endpoints del SAT', Object.keys(salud.endpoints).length, 4);
   console.log('\nAlcance real a los hosts del SAT desde esta máquina:');

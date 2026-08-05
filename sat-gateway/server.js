@@ -37,7 +37,24 @@ const limpiar = (...buffers) => buffers.forEach(b => { if (Buffer.isBuffer(b)) b
 
 const paso = (nombre, ok, detalle, extra = {}) => ({ paso: nombre, ok, detalle, ...extra });
 
-/* ---- Salud y alcance de red --------------------------------------------- */
+/* ---- Salud del proceso --------------------------------------------------
+   Health check de la plataforma. Responde de inmediato y NO depende de nadie
+   más: si consultara al SAT, una lentitud o un bloqueo de red del proveedor
+   tumbaría el despliegue completo aunque el servicio esté perfectamente sano.
+   Para sondear la red del SAT está /api/sat/salud, que se invoca a mano.
+   ------------------------------------------------------------------------- */
+app.get('/healthz', (_req, res) => {
+  res.json({
+    ok: true,
+    servicio: 'sigcf-sat-gateway',
+    version: require('./package.json').version,
+    node: process.version,
+    activoSegundos: Math.round(process.uptime()),
+    hora: new Date().toISOString(),
+  });
+});
+
+/* ---- Alcance de red hacia el SAT ---------------------------------------- */
 app.get('/api/sat/salud', async (_req, res) => {
   const endpoints = await sondear();
   res.json({

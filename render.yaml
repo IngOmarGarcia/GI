@@ -24,9 +24,11 @@ services:
     buildCommand: npm ci
     startCommand: node server.js
 
-    # Render consulta esta ruta para saber si el servicio está sano. Es la sonda
-    # de alcance: no recibe ni envía credenciales.
-    healthCheckPath: /api/sat/salud
+    # Render consulta esta ruta para decidir si enruta tráfico al servicio.
+    # Debe responder de inmediato y sin depender de terceros: si apuntara a
+    # /api/sat/salud, que consulta los cuatro endpoints del SAT, una lentitud
+    # de la red del SAT bastaría para tumbar el despliegue completo.
+    healthCheckPath: /healthz
 
     # Sólo se despliega cuando cambia la pasarela. Un cambio en index.html
     # (que es lo que publica Netlify) no dispara un redeploy aquí.
