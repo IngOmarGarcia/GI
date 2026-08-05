@@ -1,0 +1,13 @@
+# Dependencias: se reinstalan con `npm install`, no se versionan.
+node_modules/
+
+# Variables de entorno de la pasarela (nunca deben llegar al repositorio).
+.env
+.env.*
+!.env.example
+
+# Respaldos y temporales
+*.respaldo-*
+*.log
+.DS_Store
+Thumbs.db
