@@ -667,7 +667,9 @@ function downloadCSV(nombre, cols, filas) {
   });
 
   const q = v => {
-    let s = quitarAcentos(v); // Quita acentos de todas las celdas
+    // Red de seguridad: aunque la celda no haya pasado por plain() (exportaciones
+    // que arman los datos a mano), nunca se escribe un ícono en el archivo.
+    let s = quitarAcentos(sinIconos(v));
     if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;   // Anti inyección de fórmulas
     return '"' + s.replace(/"/g, '""').replace(/\r?\n/g, ' ') + '"';
   };
@@ -678,10 +680,11 @@ function downloadCSV(nombre, cols, filas) {
     ...filas.map(f => meta.map((c, i) => q(c.num ? numeroCSV(f[i]) : f[i])).join(';')),
   ];
 
-  const contenidoTexto = lineas.join('\r\n') + '\r\n';
+  // BOM UTF-8 explícito (U+FEFF) al inicio del texto: Excel detecta la
+  // codificación y respeta acentos, eñes y cualquier carácter no ASCII.
+  const contenidoTexto = '﻿' + lineas.join('\r\n') + '\r\n';
 
-  const BOM = new Uint8Array([0xEF, 0xBB, 0xBF]);
-  const blob = new Blob([BOM, contenidoTexto], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([contenidoTexto], { type: 'text/csv;charset=utf-8;' });
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -693,14 +696,32 @@ function downloadCSV(nombre, cols, filas) {
   URL.revokeObjectURL(url);
 }
 
+/* Rangos Unicode de íconos de interfaz que jamás deben llegar al CSV:
+     · U+2190–U+2BFF  flechas, símbolos misceláneos y dingbats (✔ ⚠ ⛔ ⏳ ✎ ◐ ● ≡)
+     · U+1F000–U+1FAFF emojis (📊 🖨 ⬇ …)
+     · U+FE00–U+FE0F  selectores de variación (el "invisible" detrás de ⚠️)
+     · U+200B–U+200D, U+2060, U+FFFC, U+FFFD  caracteres de control/relleno
+   No incluye U+00B7 (·), U+2014 (—) ni acentos: son contenido legítimo. */
+const RE_ICONOS = /[\u{2190}-\u{2BFF}\u{1F000}-\u{1FAFF}\u{FE00}-\u{FE0F}\u{200B}-\u{200D}\u{2060}\u{FFFC}\u{FFFD}]/gu;
+
+/** Deja únicamente texto plano: sin íconos, sin símbolos sueltos y sin espacios dobles. */
+const sinIconos = s => String(s ?? '')
+  .replace(RE_ICONOS, ' ')
+  .replace(/\s+/g, ' ')
+  .replace(/^[\s·•]+|[\s·•]+$/g, '')   // limpia el separador que queda al quitar el ícono
+  .trim();
+
 /** Aplana una celda HTML a texto plano exportable, preservando los saltos. */
-const plain = h => String(h ?? '')
+const plain = h => sinIconos(String(h ?? '')
+  // 1) Si la celda es un badge/etiqueta con valor plano declarado, se usa ese valor
+  //    y se descarta por completo el marcado decorativo ("✔ CONCLUIDA" -> "CONCLUIDA").
+  .replace(/<(\w+)[^>]*\sdata-txt="([^"]*)"[^>]*>[\s\S]*?<\/\1>/gi, '$2')
   .replace(/<br\s*\/?>/gi, ' · ')                 // no amontona las dos líneas
   .replace(/<\/(td|th|div|p|li)>/gi, ' ')
   .replace(/<[^>]*>/g,'')
   .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
   .replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&#10;/g,' ')
-  .replace(/\s+/g,' ').replace(/\s+·\s+·\s+/g,' · ').trim();
+  .replace(/\s+/g,' ').replace(/\s+·\s+·\s+/g,' · ').trim());
 
 /* ---------------------------------------------------------------------------
    3 · MOTOR DE DOCUMENTOS IMPRIMIBLES (membrete Grupo Islo)
@@ -1609,7 +1630,9 @@ const kpi = (lbl, val, sub, kind='', delta) => `<div class="kpi ${kind}">
   ${delta?`<div class="delta ${delta.d}">${delta.d==='up'?'▲':delta.d==='down'?'▼':'■'} ${esc(delta.t)}</div>`:''}
 </div>`;
 
-const badge = (k, t, ic) => `<span class="badge b-${k}">${ic?ic+' ':''}${esc(t)}</span>`;
+/* `data-txt` conserva el valor en texto plano del estado (sin ícono) para que la
+   exportación a CSV/Excel lo tome tal cual y nunca arrastre el símbolo visual. */
+const badge = (k, t, ic) => `<span class="badge b-${k}" data-txt="${esc(t)}">${ic?ic+' ':''}${esc(t)}</span>`;
 
 const EST_MAP = {
   CONCILIADA:['ok','✔'], PRESENTADA:['ok','✔'], VIGENTE:['ok','✔'], POSITIVA:['ok','✔'],
