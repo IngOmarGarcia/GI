@@ -1244,9 +1244,12 @@ const State = {
       endpoint:'https://ollama.grupoislo.com/api/generate', apiKey:'', token:'',
       temperatura:0.3, maxTokens:2048, timeout:12, verificado:false, ultimoTest:null },
     seguridad:{ dosFA:true, jwtMin:240, cifrado:'AES-256-GCM', maxSesiones:2, intentos:5 },
-    // Pasarela de diagnóstico SAT (proyecto sat-gateway/). El SPA no puede
-    // llamar al SAT directamente: sus endpoints no envían cabeceras CORS.
-    satGateway:{ url:'http://localhost:8787', timeout:45 },
+    // Pasarela de diagnóstico SAT (proyecto sat-gateway/, desplegado en Render).
+    // El SPA no puede llamar al SAT directamente: sus endpoints no envían
+    // cabeceras CORS. El timeout contempla el arranque en frío del plan free de
+    // Render, que suspende el servicio tras ~15 min sin tráfico y tarda cerca de
+    // un minuto en despertar. La URL es editable desde el modal y se conserva.
+    satGateway:{ url:'https://sigcf-sat-gateway.onrender.com', timeout:90 },
   },
 
   operaciones:[
@@ -4331,9 +4334,9 @@ A['sat-diagnostico'] = () => {
         <dt>Pasarela</dt>
         <dd><input class="input mono" id="dgUrl" value="${escAttr(urlGuardada)}"
               placeholder="https://mi-pasarela.onrender.com"/>
-            <span class="fhint">URL del servicio <span class="mono">sat-gateway</span>:
-              <span class="mono">http://localhost:8787</span> para pruebas locales, o su despliegue
-              HTTPS en Render/Railway. Se conserva entre sesiones; las credenciales nunca.</span></dd>
+            <span class="fhint">URL del servicio <span class="mono">sat-gateway</span>: su despliegue
+              HTTPS en Render, o <span class="mono">http://localhost:8787</span> para pruebas locales.
+              Se conserva entre sesiones; las credenciales nunca.</span></dd>
         <dt>RFC a validar</dt>
         <dd><input class="input mono" id="dgRfc" value="${escAttr(State.empresa.rfc)}"
               placeholder="AAA010101AAA" maxlength="13" style="text-transform:uppercase"/></dd>
@@ -4447,11 +4450,19 @@ A['sat-diag-ejecutar'] = async () => {
       r.ok ? 'ok' : 'err');
   } catch (e) {
     clearTimeout(to);
+    const enRender = /\.onrender\.com$/i.test(new URL(url).hostname);
     const causa = e.name === 'AbortError'
       ? `La pasarela no respondió en ${G.timeout} s.`
-      : `${e.message} — ¿está corriendo sat-gateway en ${esc(url)}?`;
+      : `${e.message} — ¿está corriendo sat-gateway en ${url}?`;
+    // En el plan free de Render el servicio se suspende tras ~15 min sin
+    // tráfico: el primer intento puede agotar el tiempo mientras arranca.
+    const sugerencia = enRender
+      ? 'Si el servicio estaba inactivo, Render lo está despertando (tarda cerca de un minuto). '
+        + 'Pulse «Probar alcance» para arrancarlo y reintente el diagnóstico.'
+      : 'Verifique que sat-gateway esté corriendo: <span class="mono">npm start</span> en la carpeta del proyecto.';
     SATDiag.ultimo = null;
-    salida.innerHTML = `<div class="callout crit mt16"><b>⛔ Sin respuesta de la pasarela</b><br/>${esc(causa)}</div>`;
+    salida.innerHTML = `<div class="callout crit mt16"><b>⛔ Sin respuesta de la pasarela</b><br/>${esc(causa)}
+      <br/><span class="muted">${sugerencia}</span></div>`;
     Log.push('ERROR', `Diagnóstico SAT sin respuesta: ${causa}`, 'sat-gateway');
     toast('No se pudo contactar la pasarela', 'err');
   } finally {

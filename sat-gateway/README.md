@@ -20,7 +20,7 @@ el navegador:
 El único servicio del SAT realmente automatizable con la e.firma es **Descarga
 Masiva de CFDI**, y es contra el que se diagnostica.
 
-## Arranque
+## Arranque local
 
 ```bash
 cd sat-gateway
@@ -28,14 +28,52 @@ npm install
 npm start                 # http://localhost:8787
 ```
 
-Variables opcionales:
+Variables:
 
 | Variable      | Por defecto | Uso                                              |
 |---------------|-------------|--------------------------------------------------|
-| `PORT`        | `8787`      | Puerto de escucha                                 |
+| `PORT`        | `8787`      | Puerto de escucha (Render lo inyecta)             |
 | `CORS_ORIGIN` | `*`         | Orígenes permitidos, separados por coma           |
 
-En producción fije `CORS_ORIGIN` al origen real del SPA.
+En producción **fije siempre `CORS_ORIGIN`** al origen real del SPA. Sin esa
+restricción, cualquier página de internet podría usar la pasarela como
+intermediaria hacia el SAT. Verificado en `pruebas/cors.test.js`.
+
+## Despliegue en Render
+
+El repositorio incluye `render.yaml` en la raíz, ya configurado para el SPA
+publicado en <https://gi-gestion.netlify.app>.
+
+1. Entre a <https://dashboard.render.com> → **New** → **Blueprint**.
+2. Conecte el repositorio `IngOmarGarcia/GI` y autorice el acceso.
+3. Render lee `render.yaml` y propone el servicio `sigcf-sat-gateway`.
+   Confirme con **Apply**.
+4. Al terminar, la URL será `https://sigcf-sat-gateway.onrender.com`.
+   Si el nombre ya estuviera ocupado, Render asigna otro: cópielo del panel.
+5. En el SPA, abra **SAT & Fiscal → 🩺 Diagnóstico SAT** y pegue esa URL en el
+   campo *Pasarela*. Queda guardada entre sesiones.
+
+Comprobación rápida desde cualquier terminal:
+
+```bash
+curl https://sigcf-sat-gateway.onrender.com/api/sat/salud
+```
+
+Debe devolver los cuatro endpoints del SAT con `"alcanzable": true`.
+
+### Plan free: arranque en frío
+
+Render suspende los servicios gratuitos tras unos 15 minutos sin tráfico. La
+primera petición después de una pausa tarda cerca de un minuto mientras el
+contenedor arranca. Por eso:
+
+- El SPA usa un timeout de 90 s.
+- Conviene pulsar **🌐 Probar alcance** antes del diagnóstico: despierta el
+  servicio sin enviar credencial alguna.
+- Si el diagnóstico agota el tiempo contra un host `.onrender.com`, el propio
+  modal lo explica y sugiere reintentar.
+
+Un plan de pago elimina la suspensión.
 
 ## Endpoints
 

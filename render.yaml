@@ -1,0 +1,58 @@
+# ---------------------------------------------------------------------------
+# Render Blueprint · Pasarela de diagnóstico SAT del sistema SIGCF
+#
+# Despliega el servicio `sat-gateway/` como Web Service con HTTPS.
+# El SPA vive en Netlify (https://gi-gestion.netlify.app) y sólo puede llamar a
+# esta pasarela si viaja por HTTPS: un origen https:// no puede pedir a http://.
+#
+# Uso:  Render → New → Blueprint → seleccionar el repositorio IngOmarGarcia/GI
+#       Render lee este archivo y crea el servicio automáticamente.
+# ---------------------------------------------------------------------------
+services:
+  - type: web
+    name: sigcf-sat-gateway
+    runtime: node
+    plan: free
+    region: oregon
+
+    # El repositorio contiene el SPA en la raíz y la pasarela en un subdirectorio.
+    rootDir: sat-gateway
+
+    # `npm ci` respeta package-lock.json: instala exactamente las versiones
+    # verificadas. Falla si el lock y package.json se desincronizan, que es
+    # justo lo que se quiere en un build reproducible.
+    buildCommand: npm ci
+    startCommand: node server.js
+
+    # Render consulta esta ruta para saber si el servicio está sano. Es la sonda
+    # de alcance: no recibe ni envía credenciales.
+    healthCheckPath: /api/sat/salud
+
+    # Sólo se despliega cuando cambia la pasarela. Un cambio en index.html
+    # (que es lo que publica Netlify) no dispara un redeploy aquí.
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - sat-gateway/**
+        - render.yaml
+
+    envVars:
+      # Debe coincidir con la versión con la que se verificó el servicio.
+      - key: NODE_VERSION
+        value: 22.17.0
+
+      # Orígenes autorizados a llamar a la pasarela, separados por coma.
+      # Restringido al dominio real del SPA: evita que cualquier página de
+      # internet use esta pasarela como intermediaria hacia el SAT.
+      # Para habilitar los deploy previews de Netlify, añada por ejemplo:
+      #   https://gi-gestion.netlify.app,https://deploy-preview-1--gi-gestion.netlify.app
+      - key: CORS_ORIGIN
+        value: https://gi-gestion.netlify.app
+
+    # NOTA SOBRE EL PLAN FREE
+    # Render suspende los servicios gratuitos tras ~15 minutos sin tráfico. La
+    # primera petición después de una pausa tarda cerca de un minuto en
+    # responder mientras el contenedor arranca. Por eso el SPA usa un timeout de
+    # 90 s y conviene pulsar «Probar alcance» antes del diagnóstico: esa llamada
+    # despierta el servicio sin enviar credencial alguna.
+    # Un plan de pago elimina la suspensión.

@@ -7,7 +7,10 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "prueba-crypto": "node pruebas/crypto.test.js"
+    "test": "node pruebas/crypto.test.js && node pruebas/api.test.js && node pruebas/cors.test.js",
+    "prueba-crypto": "node pruebas/crypto.test.js",
+    "prueba-api": "node pruebas/api.test.js",
+    "prueba-cors": "node pruebas/cors.test.js"
   },
   "engines": { "node": ">=18.17" },
   "dependencies": {
