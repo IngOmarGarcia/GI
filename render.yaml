@@ -45,6 +45,11 @@ services:
       # como número: Render espera texto en los valores de envVars.
       # El servicio sólo usa APIs disponibles desde Node 18 (X509Certificate,
       # fetch, FormData, Blob, AbortController), así que 20 es suficiente.
+      #
+      # Respaldo: sat-gateway/.node-version también fija 20. Si el servicio no
+      # se creó como Blueprint, Render ignora este archivo por completo y sin
+      # ese respaldo resolvería la versión desde `engines` del package.json,
+      # que al ser un rango abierto (>=18.17) trae la última disponible.
       - key: NODE_VERSION
         value: "20"
 

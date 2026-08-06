@@ -56,10 +56,41 @@ publicado en <https://gi-gestion.netlify.app>.
 Comprobación rápida desde cualquier terminal:
 
 ```bash
-curl https://sigcf-sat-gateway.onrender.com/api/sat/salud
+curl https://sigcf-sat-gateway.onrender.com/healthz
 ```
 
-Debe devolver los cuatro endpoints del SAT con `"alcanzable": true`.
+Debe devolver `{"ok":true,...}` de inmediato.
+
+### Importante: el servicio debe crearse como Blueprint
+
+Render **sólo lee `render.yaml` si el servicio se creó con New → Blueprint**. Si
+se creó con New → Web Service, el blueprint se ignora por completo y el build
+falla así:
+
+```
+npm error path /opt/render/project/src/package.json
+npm error enoent Could not read package.json
+```
+
+`/opt/render/project/src` es la raíz del repositorio: npm corrió ahí en vez de en
+`sat-gateway/` porque no se aplicó `rootDir`. La misma causa hace que se ignore
+`NODE_VERSION`.
+
+Si prefiere conservar un servicio creado a mano, configure en **Settings**:
+
+| Campo             | Valor                            |
+|-------------------|----------------------------------|
+| Root Directory    | `sat-gateway`                    |
+| Build Command     | `npm install`                    |
+| Start Command     | `node server.js`                 |
+| Health Check Path | `/healthz`                       |
+
+y en **Environment**:
+
+| Variable      | Valor                             |
+|---------------|-----------------------------------|
+| `NODE_VERSION`| `20`                              |
+| `CORS_ORIGIN` | `https://gi-gestion.netlify.app`  |
 
 ### Plan free: arranque en frío
 
