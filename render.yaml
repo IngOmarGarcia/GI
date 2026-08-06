@@ -18,10 +18,12 @@ services:
     # El repositorio contiene el SPA en la raíz y la pasarela en un subdirectorio.
     rootDir: sat-gateway
 
-    # `npm ci` respeta package-lock.json: instala exactamente las versiones
-    # verificadas. Falla si el lock y package.json se desincronizan, que es
-    # justo lo que se quiere en un build reproducible.
-    buildCommand: npm ci
+    # `npm install` en lugar de `npm ci`: este ultimo aborto el build en Render
+    # con estatus 254. `npm install` resuelve el arbol de dependencias aunque el
+    # lockfile no encaje exactamente con el entorno del build.
+    # El lockfile sigue versionado, asi que las versiones instaladas coinciden
+    # con las verificadas mientras no cambien los rangos de package.json.
+    buildCommand: npm install
     startCommand: node server.js
 
     # Render consulta esta ruta para decidir si enruta tráfico al servicio.
@@ -39,9 +41,12 @@ services:
         - render.yaml
 
     envVars:
-      # Debe coincidir con la versión con la que se verificó el servicio.
+      # Node 20 LTS. Entre comillas para que YAML lo entregue como cadena y no
+      # como número: Render espera texto en los valores de envVars.
+      # El servicio sólo usa APIs disponibles desde Node 18 (X509Certificate,
+      # fetch, FormData, Blob, AbortController), así que 20 es suficiente.
       - key: NODE_VERSION
-        value: 22.17.0
+        value: "20"
 
       # Orígenes autorizados a llamar a la pasarela, separados por coma.
       # Restringido al dominio real del SPA: evita que cualquier página de
